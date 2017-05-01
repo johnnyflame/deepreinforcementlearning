@@ -62,6 +62,9 @@ def preprocess_observations(input_observation, prev_processed_observation, input
     processed_observation = remove_color(processed_observation)
     processed_observation = remove_background(processed_observation)
 
+    processed_observation[processed_observation != 0] = 1  # everything else (paddles, ball) just set to 1
+
+
     # flatten the 80 * 80 matrix into 1 * 6400 matrix
     processed_observation = processed_observation.astype(np.float).ravel()
 
