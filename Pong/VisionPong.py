@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import tensorflow as tf
 
 # Theoretical source : http://karpathy.github.io/2016/05/31/rl/
 # Practical source : https://medium.com/@dhruvp/how-to-write-a-neural-network-to-play-pong-from-scratch-956b57d4f6e0
@@ -151,6 +152,9 @@ def main():
     num_hidden_layer_neurons = 200  # number of neurons
     input_dimensions = 80 * 80  # Dimension of our observation image
     learning_rate = 1e-4  # The step size in weight update.
+    save_path = 'models/pong.ckpt'
+
+
 
     episode_number = 0
     reward_sum = 0
