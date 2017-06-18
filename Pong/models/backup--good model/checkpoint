@@ -1,0 +1,6 @@
+model_checkpoint_path: "pong.ckpt-33600"
+all_model_checkpoint_paths: "pong.ckpt-33400"
+all_model_checkpoint_paths: "pong.ckpt-33450"
+all_model_checkpoint_paths: "pong.ckpt-33500"
+all_model_checkpoint_paths: "pong.ckpt-33550"
+all_model_checkpoint_paths: "pong.ckpt-33600"
