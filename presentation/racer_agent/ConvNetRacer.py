@@ -222,7 +222,7 @@ prev_x = np.zeros(n_obs)
 
 # training loop
 while True:
-    env.render()
+    #env.render()
 
     # preprocess the observation, set input to network to be difference image
     # NOTE: observation is returned as a multi-dimensional list in universe.
