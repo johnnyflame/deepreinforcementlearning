@@ -4,7 +4,7 @@
 import numpy as np
 import gym
 import tensorflow as tf
-import matplotlib.pyplot as pl
+#import matplotlib.pyplot as pl
 import time
 # hyperparameters
 
@@ -220,10 +220,10 @@ else:
     saver = tf.train.Saver(tf.all_variables())
     episode_number = int(load_path.split('-')[-1])
 
-pl.ion()
-pl.show()
+#pl.ion()
+#pl.show()
 
-f, axarr = pl.subplots(2, sharex=True)
+#f, axarr = pl.subplots(2, sharex=True)
 
 
 
@@ -240,7 +240,7 @@ while True:
     # note: what if we implement a timestep here?
 
     cur_x = prepro(observation)
-    #x = cur_x - prev_x if prev_x is not None else np.zeros(n_obs)
+    x = cur_x - prev_x if prev_x is not None else np.zeros(n_obs)
     x = np.concatenate([np.expand_dims(prev_x, 1), np.expand_dims(cur_x, 1)], axis=1)
 
     prev_x = cur_x
@@ -271,9 +271,9 @@ while True:
     extras_eval = sess.run(extras, feed)
 
     images_to_plot = extras_eval[0][-1, :, :, :]
-    axarr[0].imshow(images_to_plot[:, :, 0])
-    axarr[1].imshow(images_to_plot[:, :, 1])
-    pl.pause(0.01)
+ #   axarr[0].imshow(images_to_plot[:, :, 0])
+  #  axarr[1].imshow(images_to_plot[:, :, 1])
+   # pl.pause(0.01)
     time.sleep(0.01)
 
     if done:

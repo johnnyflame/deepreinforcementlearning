@@ -3,17 +3,15 @@ import numpy as np
 import universe  # register the universe environments
 import tensorflow as tf
 
+"""
+Once the training works, switch to this branch for less logging
+https://github.com/openai/universe/tree/tlb-less-logging
 
-#hyperparameters
+
+"""
+# game related hyperparameters
 
 envID = 'flashgames.DuskDrive-v0'
-n_obs = 80 * 80  # dimensionality of observations
-h = 200  # number of hidden layer neurons
-n_actions = 3  # number of available actions
-learning_rate = 1e-3
-gamma = .99  # discount factor for reward
-decay = 0.99  # decay rate for RMSProp gradients
-save_path = 'models/',envID,'.ckpt'
 
 # gamespace
 env = gym.make(envID) # environment info
@@ -21,15 +19,12 @@ env.configure(remotes=1)  # automatically creates a local docker container
 observation = env.reset()
 
 
-prev_x = None
-xs, rs, ys = [], [], []
-running_reward = None
-reward_sum = 0
-episode_number = 0
 
 
 
-# define input
+
+# define game input space
+
 left = [('KeyEvent', 'ArrowUp', True), ('KeyEvent', 'ArrowLeft', True), ('KeyEvent', 'ArrowRight', False)]
 right = [('KeyEvent', 'ArrowUp', True), ('KeyEvent', 'ArrowLeft', False), ('KeyEvent', 'ArrowRight', True)]
 forward = [('KeyEvent', 'ArrowUp', True), ('KeyEvent', 'ArrowLeft', False), ('KeyEvent', 'ArrowRight', False)]
@@ -43,6 +38,24 @@ boost = [('KeyEvent', 'ArrowUp', True), ('KeyEvent', 'ArrowLeft', False), ('KeyE
 possible_actions = [left,right,forward,slow_down,boost]
 
 
+
+# Learning hyper parameters
+
+image_d1 = 77
+image_d2 = 103
+n_obs = image_d1 * image_d2  # dimensionality of observations (based on the output of propro)
+h = 200  # number of hidden layer neurons
+n_actions = len(possible_actions) # number of available actions
+learning_rate = 1e-3
+gamma = .99  # discount factor for reward
+decay = 0.99  # decay rate for RMSProp gradients
+save_path = 'models/',envID,'.ckpt'
+
+prev_x = None
+xs, rs, ys = [], [], []
+running_reward = None
+reward_sum = 0
+episode_number = 0
 
 
 
@@ -85,8 +98,8 @@ def tf_policy_forward(x):  # x ~ [1,D]
     # First conv layer
     W_conv1 = weight_variable([20, 20, 2, 64])
     b_conv1 = bias_variable([64])
-    x_image = tf.reshape(tf_x, [-1, 80, 80, 2])
-    extras.append(x_image)
+    x_image = tf.reshape(tf_x, [-1, image_d1, image_d2, 2])
+   # extras.append(x_image)
     h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1, strides=[1, 20, 20, 1]) + b_conv1)
     h_pool1 = h_conv1
     h_pool1 = max_pool_2x2(h_pool1)
@@ -114,9 +127,10 @@ def tf_policy_forward(x):  # x ~ [1,D]
     keep_prob = tf.placeholder(tf.float32)
     h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
     """
+
     # Readout layer
-    W_fc2 = weight_variable([256, 3])
-    b_fc2 = bias_variable([3])
+    W_fc2 = weight_variable([256, n_actions])
+    b_fc2 = bias_variable([n_actions])
 
     y_conv = tf.matmul(h_fc1, W_fc2) + b_fc2
 
@@ -140,7 +154,7 @@ def prepro(I):
     # grayscale
     new_obs = new_obs.mean(axis=2)
     # downsample
-    new_obs = np.array(new_obs[::16, ::16])
+    new_obs = np.array(new_obs[::10, ::10])
     #new_obs = np.array(block_mean(new_obs, 16))
     # 1d array
     new_obs = new_obs.flatten()
@@ -178,6 +192,11 @@ tf.initialize_all_variables().run()
 
 
 
+
+
+
+
+
 # try load saved model
 saver = tf.train.Saver(tf.all_variables())
 load_was_success = True  # yes, I'm being optimistic
@@ -198,6 +217,9 @@ else:
 
 
 
+
+prev_x = np.zeros(n_obs)
+
 # training loop
 while True:
     env.render()
@@ -205,27 +227,77 @@ while True:
     # preprocess the observation, set input to network to be difference image
     # NOTE: observation is returned as a multi-dimensional list in universe.
     if observation[0]:
-      #  cur_x = prepro(observation[0])
+
         cur_x = prepro(observation[0]['vision'])
-        x = cur_x - prev_x if prev_x is not None else np.zeros(n_obs)
+        #x = cur_x - prev_x if prev_x is not None else np.zeros(n_obs)
+
+        x = np.concatenate([np.expand_dims(prev_x, 1), np.expand_dims(cur_x, 1)], axis=1)
         prev_x = cur_x
+        x = np.expand_dims(x, 0)
 
         # stochastically sample a policy from the network
-        feed = {tf_x: np.reshape(x, (1, -1))}
-        aprob = sess.run(tf_aprob, feed);
+#        feed = {tf_x: np.reshape(x, (1, -1))}
+
+        feed = {tf_x: x}
+        aprob = sess.run(tf_aprob, feed)
         aprob = aprob[0, :]
 
+       # action_n = [np.random.choice(len(possible_actions), p=aprob) for ob in observation]
+
         action = [np.random.choice(possible_actions, p=aprob)for ob in observation]
+
+        action_index = possible_actions.index(action[0])
+
+
+        label = np.zeros_like(aprob)
+        label[action_index] = 1
+
+        observation, reward, done, info = env.step(action)
+
+        reward_sum += reward[0]
+
+        # record game history
+        # xs.append(np.reshape(x,(-1,1)));
+        xs.append(x)
+        ys.append(label);
+        rs.append(reward)
+
+      #  extras_eval = sess.run(extras, feed)
+
     else:
         action = [np.random.choice(possible_actions) for ob in observation]  # your agent here
+        observation, reward, done, info = env.step(action)
 
-    observation, reward, done, info = env.step(action)
+
+
 
 
 
     if done[0]:
-        print("finished round")
-        print(reward[0])
+
+        # update running reward
+        running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
+
+        # parameter update
+        feed = {tf_x: np.vstack(xs), tf_epr: np.vstack(rs), tf_y: np.vstack(ys)}
+        _ = sess.run(train_op, feed)
+
+        # print progress console
+        if episode_number % 10 == 0:
+            print('ep {}: reward: {}, mean reward: {:3f}'.format(episode_number, reward_sum, running_reward))
+        else:
+            print('\tep {}: reward: {}'.format(episode_number, reward_sum))
+
+
+        # bookkeeping
+        xs, rs, ys = [], [], []  # reset game history
+        episode_number += 1  # the Next Episode
+        observation = env.reset()  # reset env
+        reward_sum = 0
+        if episode_number % 50 == 0:
+            saver.save(sess, save_path, global_step=episode_number)
+            print("SAVED MODEL #{}".format(episode_number))
+
 
 
 
